@@ -2,6 +2,7 @@ package main;
 
 import java.io.IOException;
 import java.util.HashMap;
+
 import wifi.WifiConnection;
 
 /**
@@ -13,7 +14,7 @@ import wifi.WifiConnection;
 public class StartParameters
 {
     // the IP address of the computer running the server application
-    private static final String SERVER_IP = "192.168.2.6";
+    private static final String SERVER_IP = "192.168.2.26";
     // our project team number
     private static final int TEAM_NUMBER = 10;
 
