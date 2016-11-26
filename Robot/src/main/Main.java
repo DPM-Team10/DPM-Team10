@@ -375,7 +375,7 @@ public class Main
         m_driver.turn(searchWidth, Robot.SEARCH_SPEED, false);
         
         // take samples while turning
-        Map<Float,Float> angleDistanceMap = new HashMap<Float,Float>();
+        Map<Float,Float> angleDistanceMap = new TreeMap<Float,Float>();
         while (m_driver.isTravelling())
         {
             angleDistanceMap.put(m_odometer.getTheta(), getDistanceMain());
@@ -383,8 +383,8 @@ public class Main
             Utils.sleep(UltrasonicPoller.UPDATE_PERIOD);
         }
 
-        // sort the map by increasing angle
-        Map<Float,Float> sortedData = new TreeMap<Float,Float>(angleDistanceMap);
+        // sorted map by increasing angle
+        Map<Float,Float> sortedData = angleDistanceMap;
         writeToFile(sortedData, "sorted.txt");
 
         // sanitize data to remove incorrect discontinuities
@@ -397,7 +397,7 @@ public class Main
         float previousDistance = entry.getValue();
 
         // check for discontinuities
-        Map<Float,Float> discontinuitiesMap = new HashMap<Float,Float>();
+        Map<Float,Float> discontinuitiesMap = new TreeMap<Float,Float>();
         
         while (entries.hasNext())
         {
@@ -417,7 +417,7 @@ public class Main
         }
 
         // sort the discontinuities map
-        Map<Float,Float> sortedDiscontinuities = new TreeMap<Float,Float>(discontinuitiesMap);
+        Map<Float,Float> sortedDiscontinuities = discontinuitiesMap;
 
         // take action based on the number of possible blocks
         if (sortedDiscontinuities.size() == 0)
@@ -483,10 +483,6 @@ public class Main
         float minDistanceGap = 0;
         Iterator<Map.Entry<Float,Float>> entries;
         Map.Entry<Float,Float> entry;
-
-        // in case we can't modify a parameter
-        // creating new reference
-        // Map<Float, Float> localRawData = new TreeMap<Float, Float>(rawData);
 
         // setting the discontinuities
         entries = rawData.entrySet().iterator();
@@ -661,8 +657,8 @@ public class Main
     {
         // partitioning data in 2, on either side of the single discontinuity
         float dividingAngle = discontinuitiesMap.keySet().iterator().next();
-        Map<Float,Float> partitionOne = new HashMap<Float,Float>();
-        Map<Float,Float> partitionTwo = new HashMap<Float,Float>();
+        Map<Float,Float> partitionOne = new TreeMap<Float,Float>();
+        Map<Float,Float> partitionTwo = new TreeMap<Float,Float>();
 
         for (Map.Entry<Float,Float> entry : data.entrySet())
         {
