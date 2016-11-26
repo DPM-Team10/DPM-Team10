@@ -106,6 +106,16 @@ public class Vector2
         m_y *= a;
         return this;
     }
+    
+    /**
+     * Makes the vector a unit vector.
+     * 
+     * @return this vector after normalization.
+     */
+    public Vector2 normalize()
+    {
+        return this.scale(1 / this.magnitude());
+    }
 
     /**
      * Rotates this vector by a specified angle.

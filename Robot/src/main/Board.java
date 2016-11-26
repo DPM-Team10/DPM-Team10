@@ -121,7 +121,7 @@ public class Board
     public boolean crossesBuildZone(Vector2 lineStart, Vector2 lineEnd)
     {
         float padding = Robot.RADIUS + ZONE_BUFFER;
-        return Utils.lineIntersectsRect(lineStart, lineEnd, Utils.padRect(m_buildZone, padding));
+        return Utils.lineIntersectsRect(lineStart, lineEnd, Robot.RADIUS * 2, Utils.padRect(m_buildZone, padding));
     }
 
     /**
@@ -137,7 +137,7 @@ public class Board
     public boolean crossesDumpZone(Vector2 lineStart, Vector2 lineEnd)
     {
         float padding = Robot.RADIUS + ZONE_BUFFER;
-        return Utils.lineIntersectsRect(lineStart, lineEnd, Utils.padRect(m_dumpZone, padding));
+        return Utils.lineIntersectsRect(lineStart, lineEnd, Robot.RADIUS * 2, Utils.padRect(m_dumpZone, padding));
     }
 
     /**
