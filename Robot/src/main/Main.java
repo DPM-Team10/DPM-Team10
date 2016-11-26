@@ -365,6 +365,8 @@ public class Main
      */
     private boolean searchForBlocks(float searchDirection, float searchWidth)
     {
+        resetSearchProperties();
+        
         // turn to face the start angle of the sweep
         float startAngle = Utils.normalizeAngle(searchDirection - (searchWidth / 2));
         m_driver.turnTo(startAngle, Robot.ROTATE_SPEED, true);
@@ -446,6 +448,19 @@ public class Main
             }
         }
         return false;
+    }
+    
+    /**
+     * This method resets relevant search properties. 
+     * 
+     */
+    private void resetSearchProperties()
+    {
+        m_usPreviousDistance = 0;
+        m_usHasStartedCollectingData = false;
+        m_discontinuityStartAngle = 0;
+        m_discontinuityEndAngle = 0;
+        m_discontinuitySpotted = false;
     }
 
     /**
@@ -630,7 +645,6 @@ public class Main
         // move robot to mean distance, at mean angle
         //m_odometer.getPosition().add(Vector2.fromPolar(90,5))
         m_driver.travelTo(m_odometer.getPosition().add(destination), true);
-        resetSearchProperties();
     }
     
     /**
@@ -686,7 +700,6 @@ public class Main
         }
 
         m_driver.travelTo(m_odometer.getPosition().add(destination), true);
-        resetSearchProperties();
     }
     
     /**
@@ -762,7 +775,6 @@ public class Main
                 Vector2 destination = Vector2.fromPolar(destinationAngle, destinationDistance - OFFSET);
                 
                 m_driver.travelTo(m_odometer.getPosition().add(destination), true);
-                resetSearchProperties();
                 break;
             }
 
@@ -889,19 +901,6 @@ public class Main
         {
             System.out.println(e.getMessage());
         }
-    }
-    
-    /**
-     * This method resets releveant search properties. 
-     * 
-     */
-    private void resetSearchProperties()
-    {
-        m_usPreviousDistance = 0;
-        m_usHasStartedCollectingData = false;
-        m_discontinuityStartAngle = 0;
-        m_discontinuityEndAngle = 0;
-        m_discontinuitySpotted = false;
     }
     
     /**
