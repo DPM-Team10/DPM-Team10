@@ -190,9 +190,12 @@ public class Board
      *            the position traveled from.
      * @param to
      *            the position traveled to.
+     * @param obstacles
+     *            a list of the center of any obstacles that should be navigated
+     *            around.
      * @return a new list of waypoints the robot should travel between.
      */
-    public List<Vector2> findPath(Vector2 from, Vector2 to)
+    public List<Vector2> findPath(Vector2 from, Vector2 to, List<Vector2> obstacles)
     {
         List<Vector2> path = new ArrayList<Vector2>();
         
@@ -217,7 +220,17 @@ public class Board
                 for (Edge e : v.getNeighbors()) 
                 {
                     Vertex next = e.getNeighbor(v);
-                    if (!moves.containsKey(next))
+                    
+                    boolean avoidPoint = false;
+                    for (Vector2 obstacle : obstacles)
+                    {
+                        if (Vector2.distance(obstacle, next.getValue()) < TILE_SIZE)
+                        {
+                            avoidPoint  = true;
+                        }
+                    }
+                    
+                    if (!moves.containsKey(next) && !avoidPoint)
                     {
                         moves.put(next, v);
                         if (next.equals(pathEnd))

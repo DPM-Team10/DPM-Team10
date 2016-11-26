@@ -243,19 +243,34 @@ public class Main
     /**
      * Moves the robot to a position while avoiding obstacles on the way.
      * 
-     * @param position
+     * @param destination
      *            the destination point.
      * @param positionTolerance
      *            the distance under which the robot must be to the given
      *            position before returning.
      */
-    private void moveWhileAvoiding(Vector2 position, float positionTolerance)
+    private void moveWhileAvoiding(Vector2 destination, float positionTolerance)
     {
-        while (Vector2.distance(m_odometer.getPosition(), position) > positionTolerance)
+        List<Vector2> obstacles = new ArrayList<Vector2>();
+        List<Vector2> path = m_board.findPath(m_odometer.getPosition(), destination, obstacles);
+        
+        // travel the entire path
+        while (path.size() > 0)
         {
-            if (moveUntilObstacle(position))
+            if (Vector2.distance(m_odometer.getPosition(), path.get(0)) > positionTolerance)
             {
-                avoidObstacle();
+                if (moveUntilObstacle(destination))
+                {
+                    //avoidObstacle();
+                    Vector2 obstaclePos = m_odometer.toWorldSpace(Vector2.unitX().scale(Robot.RADIUS + OBSTACLE_DISTANCE + 7));
+                    obstacles.add(obstaclePos);
+                    path = m_board.findPath(m_odometer.getPosition(), destination, obstacles);
+                }
+            }
+            else
+            {
+                // remove waypoints we have arrived at
+                path.remove(0);
             }
         }
     }
@@ -264,20 +279,20 @@ public class Main
      * Tries to move the robot to a given position, but stops if an obstacle is
      * encountered.
      * 
-     * @param position
+     * @param destination
      *            the destination point.
      * @returns true if the robot has stopped before an obstacle.
      */
-    private boolean moveUntilObstacle(Vector2 position)
+    private boolean moveUntilObstacle(Vector2 destination)
     {
-        m_driver.turnTo(Vector2.subtract(position, m_odometer.getPosition()).angle(), Robot.ROTATE_SPEED, true);
+        m_driver.turnTo(Vector2.subtract(destination, m_odometer.getPosition()).angle(), Robot.ROTATE_SPEED, true);
         Utils.sleep(50);
-        m_driver.goForward(Vector2.distance(m_odometer.getPosition(), position), false);
+        m_driver.goForward(Vector2.distance(m_odometer.getPosition(), destination), false);
         
         while ( m_driver.isTravelling() &&
                 m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() > Robot.RADIUS + OBSTACLE_DISTANCE
                 ) {}
-        if (m_driver.isTravelling() && Vector2.distance(position, m_odometer.getPosition()) > OBSTACLE_DISTANCE)
+        if (m_driver.isTravelling() && Vector2.distance(destination, m_odometer.getPosition()) > OBSTACLE_DISTANCE)
         {
             m_driver.stop();
             return true;
