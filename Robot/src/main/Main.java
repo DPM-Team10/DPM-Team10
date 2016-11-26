@@ -628,7 +628,9 @@ public class Main
         Vector2 destination = Vector2.fromPolar(meanAngle, meanDistance - OFFSET);
 
         // move robot to mean distance, at mean angle
-        m_driver.travelTo(destination, true);
+        //m_odometer.getPosition().add(Vector2.fromPolar(90,5))
+        m_driver.travelTo(m_odometer.getPosition().add(destination), true);
+        resetSearchProperties();
     }
     
     /**
@@ -683,7 +685,8 @@ public class Main
             destination = Vector2.fromPolar(meanAnglePartitionTwo, meanDistancePartitionTwo - OFFSET);
         }
 
-        m_driver.travelTo(destination, true);
+        m_driver.travelTo(m_odometer.getPosition().add(destination), true);
+        resetSearchProperties();
     }
     
     /**
@@ -752,10 +755,14 @@ public class Main
                 if (destinationDistance < 16)
                 {
                     Sound.beepSequenceUp();
+                    resetSearchProperties();
                     break;
                 }
-
-                m_driver.travelTo(Vector2.fromPolar(destinationAngle, destinationDistance - OFFSET), true);
+                
+                Vector2 destination = Vector2.fromPolar(destinationAngle, destinationDistance - OFFSET);
+                
+                m_driver.travelTo(m_odometer.getPosition().add(destination), true);
+                resetSearchProperties();
                 break;
             }
 
@@ -882,6 +889,19 @@ public class Main
         {
             System.out.println(e.getMessage());
         }
+    }
+    
+    /**
+     * This method resets releveant search properties. 
+     * 
+     */
+    private void resetSearchProperties()
+    {
+        m_usPreviousDistance = 0;
+        m_usHasStartedCollectingData = false;
+        m_discontinuityStartAngle = 0;
+        m_discontinuityEndAngle = 0;
+        m_discontinuitySpotted = false;
     }
     
     /**
