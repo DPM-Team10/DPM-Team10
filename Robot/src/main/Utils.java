@@ -124,32 +124,13 @@ public class Utils
      *            the start of the line.
      * @param lineEnd
      *            the end of the line.
-     * @param lineWidth
-     *            the width of the line.
      * @param rect
      *            the rectangle to check against.
      * @return true if the given line is intersecting.
      */
-    public static boolean lineIntersectsRect(Vector2 lineStart, Vector2 lineEnd, float lineWidth, Rectangle rect)
+    public static boolean lineIntersectsRect(Vector2 lineStart, Vector2 lineEnd, Rectangle rect)
     {
-        Vector2 line = Vector2.subtract(lineEnd, lineStart);
-        Vector2 offsetDirection = new Vector2(line).normalize().scale(lineWidth / 2).rotate(90);
-        
-        List<Vector2> lineStarts = new ArrayList<Vector2>();
-        lineStarts.add(lineStart);
-        lineStarts.add(Vector2.add(lineStart, offsetDirection));
-        lineStarts.add(Vector2.add(lineStart, offsetDirection.scale(-1)));
-
-        for (Vector2 start : lineStarts)
-        {
-            Vector2 end = Vector2.add(start, line);
-            System.out.println(start.toString() + " " + end.toString());
-            if (rect.intersectsLine(start.getX(), start.getY(), end.getX(), end.getY()))
-            {
-                return true;
-            }
-        }
-        return false;
+        return rect.intersectsLine(lineStart.getX(), lineStart.getY(), lineEnd.getX(), lineEnd.getY());
     }
 
     /**

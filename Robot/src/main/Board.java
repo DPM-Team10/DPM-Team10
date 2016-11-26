@@ -1,5 +1,7 @@
 package main;
 
+import java.util.*;
+import graph.*;
 import lejos.robotics.geometry.*;
 
 /**
@@ -20,6 +22,9 @@ public class Board
     // prevent entering in cm
     public static final float ZONE_BUFFER = 2.0f;
 
+    private StartParameters m_startParameters;
+    private List<Vertex> m_navGraph;
+    
     // various zone rectangles
     private Rectangle m_board;
     private Rectangle m_dumpZone;
@@ -45,10 +50,10 @@ public class Board
      *            the green zone upper corner x position.
      * @param ugzy
      *            the green zone upper corner y position.
-     * @param startCorner
-     *            the starting corner number.
+     * @param startParams
+     *            the StartParameters instance.
      */
-    public Board(int lrzx, int lrzy, int urzx, int urzy, int lgzx, int lgzy, int ugzx, int ugzy, int startCorner)
+    public Board(int lrzx, int lrzy, int urzx, int urzy, int lgzx, int lgzy, int ugzx, int ugzy, StartParameters startParams)
     {
         Vector2 wallLowerCorner = Vector2.one().scale(-TILE_SIZE);
         Vector2 wallUpperCorner = Vector2.one().scale(TILE_SIZE * (TILE_COUNT - 1));
@@ -62,9 +67,58 @@ public class Board
         Vector2 buildUpperCorner = new Vector2(ugzx, ugzy).scale(TILE_SIZE);
         m_buildZone = Utils.toRect(buildLowerCorner, buildUpperCorner);
         
+        m_startParameters = startParams;
+        
+        int startCorner = m_startParameters.getStartCorner();
         m_startCornerPos = new Vector2(
                             startCorner == 2 || startCorner == 3 ? (Board.TILE_COUNT - 2) * Board.TILE_SIZE : 0,
                             startCorner == 3 || startCorner == 4 ? (Board.TILE_COUNT - 2) * Board.TILE_SIZE : 0);
+        
+        // get all allowable board position
+        m_navGraph = new ArrayList<Vertex>();
+        for (int i = 0; i < Board.TILE_COUNT; i++)
+        {
+            for (int j = 0; j < Board.TILE_COUNT; j++)
+            {
+                Vector2 point = new Vector2(i * TILE_SIZE, j * TILE_SIZE);
+                if (inBounds(point) && !inEnemyZone(point))
+                {
+                    m_navGraph.add(new Vertex(point));
+                }
+            }
+        }
+        
+        // connect adjacent vertices
+        List<Vertex> unconnected = new ArrayList<Vertex>(m_navGraph);
+        for (Vertex i : m_navGraph)
+        {
+            unconnected.remove(i);
+            for (Vertex j : unconnected)
+            {
+                if (Vector2.distance(i.getValue(), j.getValue()) < Board.TILE_SIZE + 1)
+                {
+                    i.addNeighbor(new Edge(i, j));
+                    j.addNeighbor(new Edge(i, j));
+                }
+            }
+        }
+    }
+    
+    /**
+     * Gets the position of the line intersection nearest to the starting corner.
+     */
+    public Vector2 getStartPos()
+    {
+        return m_startCornerPos;
+    }
+
+    /**
+     * @return the position of the center of our zone.
+     */
+    public Vector2 getTeamZoneCenter()
+    {
+        Rectangle teamZone = m_startParameters.isBuilder() ? m_buildZone : m_dumpZone;
+        return new Vector2((float) teamZone.getCenterX(), (float) teamZone.getCenterY());
     }
 
     /**
@@ -81,35 +135,22 @@ public class Board
     }
 
     /**
-     * Checks if the robot could overlap the build zone while at a specified
+     * Checks if the robot could overlap the enemy zone while at a specified
      * position.
      * 
      * @param position
      *            the position to check the validity of.
      * @return true if the robot could overlap at the position.
      */
-    public boolean inBuildZone(Vector2 position)
+    public boolean inEnemyZone(Vector2 position)
     {
         float padding = Robot.RADIUS + ZONE_BUFFER;
-        return Utils.rectContains(position, Utils.padRect(m_buildZone, padding));
+        Rectangle enemyZone = m_startParameters.isBuilder() ? m_dumpZone : m_buildZone;
+        return Utils.rectContains(position, Utils.padRect(enemyZone, padding));
     }
 
     /**
-     * Checks if the robot could overlap the dump zone while at a specified
-     * position.
-     * 
-     * @param position
-     *            the position to check the validity of.
-     * @return true if the robot could overlap at the position.
-     */
-    public boolean inDumpZone(Vector2 position)
-    {
-        float padding = Robot.RADIUS + ZONE_BUFFER;
-        return Utils.rectContains(position, Utils.padRect(m_dumpZone, padding));
-    }
-
-    /**
-     * Checks if the robot would overlap the build zone while traveling between
+     * Checks if the robot would overlap the enemy zone while traveling between
      * two points.
      * 
      * @param lineStart
@@ -118,26 +159,11 @@ public class Board
      *            the end of the travel path.
      * @return true if the robot could overlap while traveling.
      */
-    public boolean crossesBuildZone(Vector2 lineStart, Vector2 lineEnd)
+    public boolean crossesEnemyZone(Vector2 lineStart, Vector2 lineEnd)
     {
         float padding = Robot.RADIUS + ZONE_BUFFER;
-        return Utils.lineIntersectsRect(lineStart, lineEnd, Robot.RADIUS * 2, Utils.padRect(m_buildZone, padding));
-    }
-
-    /**
-     * Checks if the robot would overlap the dump zone while traveling between
-     * two points.
-     * 
-     * @param lineStart
-     *            the start of the travel path.
-     * @param lineEnd
-     *            the end of the travel path.
-     * @return true if the robot could overlap while traveling.
-     */
-    public boolean crossesDumpZone(Vector2 lineStart, Vector2 lineEnd)
-    {
-        float padding = Robot.RADIUS + ZONE_BUFFER;
-        return Utils.lineIntersectsRect(lineStart, lineEnd, Robot.RADIUS * 2, Utils.padRect(m_dumpZone, padding));
+        Rectangle enemyZone = m_startParameters.isBuilder() ? m_dumpZone : m_buildZone;
+        return Utils.lineIntersectsRect(lineStart, lineEnd, Utils.padRect(enemyZone, padding));
     }
 
     /**
@@ -157,26 +183,108 @@ public class Board
     }
 
     /**
-     * @return the position of the center of the build zone.
+     * Gets the shortest path between two board points that avoids any invalid
+     * regions.
+     * 
+     * @param from
+     *            the position traveled from.
+     * @param to
+     *            the position traveled to.
+     * @return a new list of waypoints the robot should travel between.
      */
-    public Vector2 getBuildZoneCenter()
+    public List<Vector2> findPath(Vector2 from, Vector2 to)
     {
-        return new Vector2((float) m_buildZone.getCenterX(), (float) m_buildZone.getCenterY());
+        List<Vector2> path = new ArrayList<Vector2>();
+        
+        // find the closest nodes in the navigation graph
+        Vertex pathStart = getNearestNavPoint(from);
+        Vertex pathEnd = getNearestNavPoint(to);
+
+        path.add(from);
+        if (!pathStart.equals(pathEnd))
+        {
+            // do a breadth first search to find the first short path
+            Queue<Vertex> toVisit = new LinkedList<Vertex>();
+            HashMap<Vertex,Vertex> moves = new HashMap<Vertex,Vertex>();
+            
+            toVisit.add(pathStart);
+            moves.put(pathStart, null);
+            
+            // until we find a path keep visiting nodes
+            while (!toVisit.isEmpty())
+            {
+                Vertex v = toVisit.remove();
+                for (Edge e : v.getNeighbors()) 
+                {
+                    Vertex next = e.getNeighbor(v);
+                    if (!moves.containsKey(next))
+                    {
+                        moves.put(next, v);
+                        if (next.equals(pathEnd))
+                        {
+                            toVisit = new LinkedList<Vertex>();
+                            break;
+                        }
+                        toVisit.add(next);
+                    }
+                }
+            }
+            
+            // build the waypoint path
+            List<Vector2> reversePath = new ArrayList<Vector2>();
+            reversePath.add(to);
+            
+            Vertex currentNode = pathEnd;
+            while (currentNode != null)
+            {
+                reversePath.add(currentNode.getValue());
+                currentNode = moves.get(currentNode);
+            }
+            
+            reversePath.add(from);
+
+            // construct a forward path with redundant waypoints removed
+            for (int i = reversePath.size() - 1; i >= 0; i--)
+            {
+                Vector2 lastValidPoint = reversePath.get(i);
+                for (int j = i - 1; j >= 0; j--)
+                {
+                    if (crossesEnemyZone(reversePath.get(i), reversePath.get(j)))
+                    {
+                        path.add(lastValidPoint);
+                        i = j + 1;
+                        break;
+                    }
+                    else
+                    {
+                        lastValidPoint = reversePath.get(j);
+                    }
+                }
+            }
+        }
+        path.add(to);
+
+        return path;
     }
 
     /**
-     * @return the position of the center of the dump zone.
+     * Get the nearest point on the board that is in the navigation graph.
+     * 
+     * @return the closest Vertex.
      */
-    public Vector2 getDumpZoneCenter()
+    public Vertex getNearestNavPoint(Vector2 position)
     {
-        return new Vector2((float) m_dumpZone.getCenterX(), (float) m_dumpZone.getCenterY());
-    }
-
-    /**
-     * Gets the position of the line intersection nearest to the starting corner.
-     */
-    public Vector2 getStartPos()
-    {
-        return m_startCornerPos;
+        float closestDistance = Float.MAX_VALUE;
+        Vertex closest = null;
+        for (Vertex v : m_navGraph)
+        {
+            float distance = Vector2.distance(v.getValue(), position);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closest = v;
+            }
+        }
+        return closest;
     }
 }

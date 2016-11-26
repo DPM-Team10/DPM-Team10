@@ -105,8 +105,8 @@ public class UtilsTest
         Rectangle rect = Utils.toRect(corner1, corner2);
         
         Vector2 lineStart = new Vector2(-11, 0);
-        Vector2 lineEnd = new Vector2(10, 21);
+        Vector2 lineEnd = new Vector2(13, 21);
    
-        assertEquals(true, Utils.lineIntersectsRect(lineStart, lineEnd, 2f, rect));
+        assertEquals(true, Utils.lineIntersectsRect(lineStart, lineEnd, rect));
     }
 }

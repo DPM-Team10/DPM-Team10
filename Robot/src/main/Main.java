@@ -140,7 +140,7 @@ public class Main
             if (m_blockManager.getBlockCount() >= BLOCK_STACK_SIZE)
             {
                 // move to the appropriate zone
-                moveWhileAvoiding(m_startParams.isBuilder() ? m_board.getBuildZoneCenter() : m_board.getDumpZoneCenter(), POSITION_TOLERANCE);
+                moveWhileAvoiding(m_board.getTeamZoneCenter(), POSITION_TOLERANCE);
                 m_blockManager.releaseBlock();
             }
         }
@@ -339,7 +339,7 @@ public class Main
      */
     private boolean checkValidity(Vector2 destination)
     {
-        return m_board.inBounds(destination) && !(m_startParams.isBuilder() ? m_board.inDumpZone(destination) : m_board.inBuildZone(destination));
+        return m_board.inBounds(destination) && !m_board.inEnemyZone(destination);
     }
 
     /**

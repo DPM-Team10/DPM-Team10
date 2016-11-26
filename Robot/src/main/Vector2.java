@@ -116,6 +116,23 @@ public class Vector2
     {
         return this.scale(1 / this.magnitude());
     }
+    
+    /**
+     * Compares two vectors.
+     * 
+     * @return true if they have the same value.
+     */
+    public boolean equals(Vector2 v)
+    {
+        if (v != null)
+        {
+            return m_x == v.getX() && m_y == v.getY();
+        }
+        else
+        {
+            throw new InvalidParameterException("Attempted to compare a null vector!");
+        }
+    }
 
     /**
      * Rotates this vector by a specified angle.

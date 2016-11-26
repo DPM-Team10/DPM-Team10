@@ -118,7 +118,7 @@ public class StartParameters
                 m_data.get("LGZy"),
                 m_data.get("UGZx"),
                 m_data.get("UGZy"),
-                getStartCorner()
+                this
                 );
     }
 }
