@@ -262,7 +262,17 @@ public class Board
                 Vector2 lastValidPoint = reversePath.get(i);
                 for (int j = i - 1; j >= 0; j--)
                 {
-                    if (crossesEnemyZone(reversePath.get(i), reversePath.get(j)))
+                    boolean crossesObstacle = false; 
+                    for (Vector2 obstacle : obstacles)
+                    {
+                        Rectangle obstacleArea = Utils.padRect(Utils.toRect(obstacle, obstacle), Robot.RADIUS + 20);
+                        if (Utils.lineIntersectsRect(reversePath.get(i), reversePath.get(j), obstacleArea))
+                        {
+                            crossesObstacle  = true;
+                        }
+                    }
+                    
+                    if (crossesEnemyZone(reversePath.get(i), reversePath.get(j)) || crossesObstacle)
                     {
                         path.add(lastValidPoint);
                         i = j + 1;
