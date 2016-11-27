@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
+import cx.ath.matthew.debug.Debug;
 import lejos.hardware.Button;
 import lejos.hardware.Sound;
 
@@ -22,7 +23,7 @@ public class Main
     // number of blocks the the robot will try to stack before dropping them off
     private static final int BLOCK_STACK_SIZE = 1;
     // the distance in cm ahead of the robot in which obstacles are seen 
-    private static final float OBSTACLE_DISTANCE = 7.5f;
+    private static final float OBSTACLE_DISTANCE = 11f;
     // the distance in cm the robot moves to either side of an obstacle when trying to avoid it
     private static final float AVOID_DISTANCE = 40;
     // how much error is allowed between the odometer position and destination position.
@@ -47,7 +48,7 @@ public class Main
     private float m_discontinuityStartAngle = 0;
     private float m_discontinuityEndAngle = 0;
     private boolean  m_discontinuitySpotted = false;
-
+    
     
     /**
      * Launches the main program.
@@ -100,6 +101,9 @@ public class Main
         m_odometer.start();
         m_display.start();
 
+        moveWhileAvoiding(new Vector2(Board.TILE_SIZE * 5, Board.TILE_SIZE * 4), POSITION_TOLERANCE);
+        
+        /*
         // localize
         localize(true);
 
@@ -147,7 +151,7 @@ public class Main
         
         // we must move back to the start corner before the end of the match
         moveWhileAvoiding(m_board.getStartPos(), POSITION_TOLERANCE);
-        
+        */
         // finish
         System.exit(0);
     }
@@ -259,16 +263,17 @@ public class Main
         {
             if (Vector2.distance(m_odometer.getPosition(), path.get(0)) > positionTolerance)
             {
-                if (moveUntilObstacle(destination))
+                Utils.writeDebug("Moving to " + path.get(0).toString());
+                if (moveUntilObstacle(path.get(0)))
                 {
-                    //avoidObstacle();
-                    Vector2 obstaclePos = m_odometer.toWorldSpace(Vector2.unitX().scale(Robot.RADIUS + OBSTACLE_DISTANCE + 7));
+                    Vector2 obstaclePos = m_odometer.toWorldSpace(Vector2.unitX().scale(Robot.RADIUS + OBSTACLE_DISTANCE + 4));
                     obstacles.add(obstaclePos);
                     path = m_board.findPath(m_odometer.getPosition(), destination, obstacles);
                 }
             }
             else
             {
+                Utils.writeDebug("Arrived at " + path.get(0).toString());
                 // remove waypoints we have arrived at
                 path.remove(0);
             }
@@ -290,9 +295,10 @@ public class Main
         m_driver.goForward(Vector2.distance(m_odometer.getPosition(), destination), false);
         
         while ( m_driver.isTravelling() &&
-                m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() > Robot.RADIUS + OBSTACLE_DISTANCE
+                (m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() > Robot.RADIUS + OBSTACLE_DISTANCE ||
+                        Vector2.distance(destination, m_odometer.getPosition()) < OBSTACLE_DISTANCE)
                 ) {}
-        if (m_driver.isTravelling() && Vector2.distance(destination, m_odometer.getPosition()) > OBSTACLE_DISTANCE)
+        if (m_driver.isTravelling())
         {
             m_driver.stop();
             return true;
@@ -400,11 +406,11 @@ public class Main
 
         // sorted map by increasing angle
         Map<Float,Float> sortedData = angleDistanceMap;
-        writeToFile(sortedData, "sorted.txt");
+        Utils.writeToFile(sortedData, "sorted.txt");
 
         // sanitize data to remove incorrect discontinuities
         Map<Float,Float> sanitizedData = sanitize(sortedData);
-        writeToFile(sanitizedData, "sanitized.txt");
+        Utils.writeToFile(sanitizedData, "sanitized.txt");
 
         // set the iterator to the first sanitized data point
         Iterator<Map.Entry<Float,Float>> entries = sanitizedData.entrySet().iterator();
@@ -443,14 +449,14 @@ public class Main
         else if (sortedDiscontinuities.size() == 1)
         {
             Sound.beep();
-            writeToFile(sortedDiscontinuities, "disc1.txt");
+            Utils.writeToFile(sortedDiscontinuities, "disc1.txt");
             oneDiscontinuity(sortedData, sortedDiscontinuities);
             return true;
         }
         else
         {
             Sound.twoBeeps();
-            writeToFile(sortedDiscontinuities, "disc2.txt");
+            Utils.writeToFile(sortedDiscontinuities, "disc2.txt");
 
             if (moreThanOneBlock(sortedDiscontinuities))
             {
@@ -546,12 +552,12 @@ public class Main
 
                     angleGap = Math.abs(m_discontinuityEndAngle - m_discontinuityStartAngle);
 
-                    writeDebug("Angle gap is: " + angleGap);
+                    Utils.writeDebug("Angle gap is: " + angleGap);
 
                     if (angleGap < minAngleGap) // if we have a discontinuity
                                                 // lower than this, delete
                     {
-                        writeDebug("will delete from: " + m_discontinuityStartAngle + " to: " + m_discontinuityEndAngle);
+                        Utils.writeDebug("will delete from: " + m_discontinuityStartAngle + " to: " + m_discontinuityEndAngle);
 
                         // modifiying this reference
                         filterOutFalsePositives(rawData, m_discontinuityStartAngle, m_discontinuityEndAngle);
@@ -601,7 +607,7 @@ public class Main
 
             if (Math.abs(currentAngle - previousAngle) > oneBlockAngle)
             {
-                writeDebug("Detected two blocks. Abort.");
+                Utils.writeDebug("Detected two blocks. Abort.");
                 return true;
             }
 
@@ -772,7 +778,7 @@ public class Main
                 destinationDistance = (currentDistance + previousDistance) / 2.0f;
 
                 // DEBUG
-                writeDebug("Planning on traveling: " + destinationDistance);
+                Utils.writeDebug("Planning on traveling: " + destinationDistance);
 
                 // if it detects an object to close to it, abort search and
                 // relocate
@@ -882,60 +888,6 @@ public class Main
                 m_usPreviousDistance = distance;
             }
             return distance;
-        }
-    }
-
-    /**
-     * This method writes a map to a file.
-     * 
-     * @param data
-     *            a non-null map.
-     */
-    private void writeToFile(Map<Float,Float> data, String filename)
-    {
-        // Print output on to a txt file
-        File file = new File(filename);
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename)))
-        {
-            if (!file.exists())
-            {
-                file.createNewFile();
-            }
-            int index = 0;
-            for (Map.Entry<Float,Float> entry : data.entrySet())
-            {
-                writer.write(index + "\t" + String.format("%.1f", entry.getKey()) + "\t" + String.format("%.1f", entry.getValue()) + "\n");
-                index++;
-            }
-        }
-        catch (IOException e)
-        {
-            System.out.println(e.getMessage());
-        }
-    }
-    
-    /**
-     * Method for writing to a debug file. Appends to same file.
-     * 
-     * @param data
-     *            any string.
-     */
-    private static void writeDebug(String data)
-    {
-        // Print output on to a txt file
-        File file = new File("Debug.txt");
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("Debug.txt", true)))
-        {
-            if (!file.exists())
-            {
-                file.createNewFile();
-            }
-
-            writer.write(data + "\n");
-        }
-        catch (IOException e)
-        {
-            System.out.println(e.getMessage());
         }
     }
 }

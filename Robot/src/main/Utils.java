@@ -1,5 +1,9 @@
 package main;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import lejos.robotics.geometry.*;
 
@@ -193,5 +197,59 @@ public class Utils
     public static void sleepToNextPeroid(int period, long periodStart)
     {
         sleep(period - (System.currentTimeMillis() - periodStart));
+    }
+
+    /**
+     * This method writes a map to a file.
+     * 
+     * @param data
+     *            a non-null map.
+     */
+    public static void writeToFile(Map<Float,Float> data, String filename)
+    {
+        // Print output on to a txt file
+        File file = new File(filename);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename)))
+        {
+            if (!file.exists())
+            {
+                file.createNewFile();
+            }
+            int index = 0;
+            for (Map.Entry<Float,Float> entry : data.entrySet())
+            {
+                writer.write(index + "\t" + String.format("%.1f", entry.getKey()) + "\t" + String.format("%.1f", entry.getValue()) + "\n");
+                index++;
+            }
+        }
+        catch (IOException e)
+        {
+            System.out.println(e.getMessage());
+        }
+    }
+    
+    /**
+     * Method for writing to a debug file. Appends to same file.
+     * 
+     * @param data
+     *            any string.
+     */
+    public static void writeDebug(String data)
+    {
+        // Print output on to a txt file
+        File file = new File("Debug.txt");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("Debug.txt", true)))
+        {
+            if (!file.exists())
+            {
+                file.createNewFile();
+            }
+
+            writer.write(data + "\n");
+        }
+        catch (IOException e)
+        {
+            System.out.println(e.getMessage());
+        }
     }
 }

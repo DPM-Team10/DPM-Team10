@@ -213,6 +213,27 @@ public class Board
             toVisit.add(pathStart);
             moves.put(pathStart, null);
             
+            // find vertices that are temporarily excluded from the navmesh
+            HashSet<Vertex> blockedVertices = new HashSet<Vertex>();
+
+            for (Vertex v : m_navGraph)
+            {
+                for (Vector2 obstacle : obstacles)
+                {
+                    if (!v.equals(pathEnd) && Vector2.distance(obstacle, v.getValue()) < Robot.RADIUS + 8)
+                    {
+                        blockedVertices.add(v);
+                    }
+                }
+            }
+
+            Utils.writeDebug("Blocked...");
+            for (Vertex v : blockedVertices)
+            {
+                //System.out.println("B: " + v.getValue().toString());
+                Utils.writeDebug(v.getValue().toString());
+            }
+            
             // until we find a path keep visiting nodes
             while (!toVisit.isEmpty())
             {
@@ -220,17 +241,7 @@ public class Board
                 for (Edge e : v.getNeighbors()) 
                 {
                     Vertex next = e.getNeighbor(v);
-                    
-                    boolean avoidPoint = false;
-                    for (Vector2 obstacle : obstacles)
-                    {
-                        if (Vector2.distance(obstacle, next.getValue()) < TILE_SIZE)
-                        {
-                            avoidPoint  = true;
-                        }
-                    }
-                    
-                    if (!moves.containsKey(next) && !avoidPoint)
+                    if (!moves.containsKey(next) && !blockedVertices.contains(next))
                     {
                         moves.put(next, v);
                         if (next.equals(pathEnd))
@@ -254,6 +265,11 @@ public class Board
                 currentNode = moves.get(currentNode);
             }
             
+            for (Vector2 v : reversePath)
+            {
+                //System.out.println("R: " + v.toString());
+            }
+            
             reversePath.add(from);
 
             // construct a forward path with redundant waypoints removed
@@ -262,10 +278,10 @@ public class Board
                 Vector2 lastValidPoint = reversePath.get(i);
                 for (int j = i - 1; j >= 0; j--)
                 {
-                    boolean crossesObstacle = false; 
+                    boolean crossesObstacle = false;
                     for (Vector2 obstacle : obstacles)
                     {
-                        Rectangle obstacleArea = Utils.padRect(Utils.toRect(obstacle, obstacle), Robot.RADIUS + 20);
+                        Rectangle obstacleArea = Utils.padRect(Utils.toRect(obstacle, obstacle), Robot.RADIUS + 5);
                         if (Utils.lineIntersectsRect(reversePath.get(i), reversePath.get(j), obstacleArea))
                         {
                             crossesObstacle  = true;
@@ -286,6 +302,13 @@ public class Board
             }
         }
         path.add(to);
+
+        Utils.writeDebug("Path...");
+        for (Vector2 v : path)
+        {
+            //System.out.println("P: " + v.toString());
+            Utils.writeDebug(v.toString());
+        }
 
         return path;
     }

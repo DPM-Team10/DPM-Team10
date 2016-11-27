@@ -2,6 +2,7 @@ package main;
 
 import static org.junit.Assert.*;
 import java.security.InvalidParameterException;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.Test;
 
@@ -51,7 +52,7 @@ public class Vector2Test
     {
         String message = "";
         try
-        {            
+        {
             Vector2 vec = new Vector2(null);
         }
         catch (InvalidParameterException e)

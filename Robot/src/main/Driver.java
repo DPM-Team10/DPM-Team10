@@ -29,6 +29,7 @@ public class Driver
             motor.stop();
             motor.setAcceleration(Robot.ACCELERATION);
         }
+        //m_leftMotor.synchronizeWith(new EV3LargeRegulatedMotor[] { m_rightMotor });
     }
 
     /**
@@ -47,8 +48,10 @@ public class Driver
         m_rightMotor.setSpeed(Robot.MOVE_SPEED);
 
         // rotate motors
+        //m_leftMotor.startSynchronization();
         m_leftMotor.rotate(convertDistance(Robot.WHEEL_RADIUS, distance), true);
         m_rightMotor.rotate(convertDistance(Robot.WHEEL_RADIUS, distance), !blockThread);
+        //m_leftMotor.endSynchronization();
     }
 
     /**
@@ -94,8 +97,10 @@ public class Driver
         m_rightMotor.setSpeed(speed);
 
         // rotate the motors to complete the motion
+        //m_leftMotor.startSynchronization();
         m_leftMotor.rotate(-convertAngle(Robot.WHEEL_RADIUS, bearing), true);
         m_rightMotor.rotate(convertAngle(Robot.WHEEL_RADIUS, bearing), !blockThread);
+        //m_leftMotor.endSynchronization();
     }
 
     /**
@@ -116,8 +121,10 @@ public class Driver
         m_rightMotor.setSpeed(speed);
 
         // rotate the motors to complete the motion
+        //m_leftMotor.startSynchronization();
         m_leftMotor.rotate(-convertAngle(Robot.WHEEL_RADIUS, angle), true);
         m_rightMotor.rotate(convertAngle(Robot.WHEEL_RADIUS, angle), !blockThread);
+        //m_leftMotor.endSynchronization();
     }
 
     /**
