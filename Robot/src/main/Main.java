@@ -1,11 +1,6 @@
 package main;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.*;
-import cx.ath.matthew.debug.Debug;
 import lejos.hardware.Button;
 import lejos.hardware.Sound;
 
@@ -24,10 +19,10 @@ public class Main
     private static final int BLOCK_STACK_SIZE = 1;
     // the distance in cm ahead of the robot in which obstacles are seen 
     private static final float OBSTACLE_DISTANCE = 11f;
-    // the distance in cm the robot moves to either side of an obstacle when trying to avoid it
-    private static final float AVOID_DISTANCE = 40;
     // how much error is allowed between the odometer position and destination position.
-    private static final float POSITION_TOLERANCE = 2.0f;
+    private static final float POSITION_TOLERANCE = 4.0f;
+    // once this much time in seconds is left the robot will try to return the the start.
+    private static final float END_TIME = 20f;
     
     private StartParameters m_startParams;
     private Board m_board;
@@ -89,6 +84,8 @@ public class Main
             m_startParams.useTestData();
         }
         
+        Robot.SCREEN.clear();
+        
         // record the starting time
         m_startTime = System.currentTimeMillis();
 
@@ -101,9 +98,6 @@ public class Main
         m_odometer.start();
         m_display.start();
 
-        moveWhileAvoiding(new Vector2(Board.TILE_SIZE * 5, Board.TILE_SIZE * 4), POSITION_TOLERANCE);
-        
-        /*
         // localize
         localize(true);
 
@@ -113,16 +107,25 @@ public class Main
         // initialize the claw
         m_blockManager.initializeClaw();
 
+        Random random = new Random();
+        List<Vector2> searchPoints = new ArrayList<Vector2>();
+        
+        
         // main logic loop
-        while (getTimeRemaining() > 20)
+        while (getTimeRemaining() > END_TIME)
         {
             // search for blocks until we are facing a probably block
-            while (!searchForBlocks(45, 90))
+            
+            
+            float randomAngle = (random.nextFloat() * 360);
+            while (!searchForBlocks(randomAngle, 90))
             {
                 
             }
             
-            // if there is an object in front of the robot, identify it
+            if (getTimeRemaining() < END_TIME) { break; }
+            
+            // identify the object in front of the robot
             float blockDistance = m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX();
             if (blockDistance < Robot.RADIUS + 20)
             {
@@ -139,6 +142,8 @@ public class Main
                     m_blockManager.captureBlock();
                 }
             }
+            
+            if (getTimeRemaining() < END_TIME) { break; }
 
             // drop off any held blocks once we have enough
             if (m_blockManager.getBlockCount() >= BLOCK_STACK_SIZE)
@@ -151,7 +156,7 @@ public class Main
         
         // we must move back to the start corner before the end of the match
         moveWhileAvoiding(m_board.getStartPos(), POSITION_TOLERANCE);
-        */
+        
         // finish
         System.exit(0);
     }
@@ -252,8 +257,9 @@ public class Main
      * @param positionTolerance
      *            the distance under which the robot must be to the given
      *            position before returning.
+     * @returns true if the destination was blocked.
      */
-    private void moveWhileAvoiding(Vector2 destination, float positionTolerance)
+    private boolean moveWhileAvoiding(Vector2 destination, float positionTolerance)
     {
         List<Vector2> obstacles = new ArrayList<Vector2>();
         List<Vector2> path = m_board.findPath(m_odometer.getPosition(), destination, obstacles);
@@ -263,21 +269,29 @@ public class Main
         {
             if (Vector2.distance(m_odometer.getPosition(), path.get(0)) > positionTolerance)
             {
-                Utils.writeDebug("Moving to " + path.get(0).toString());
+                //Utils.writeDebug("Moving to " + path.get(0).toString());
                 if (moveUntilObstacle(path.get(0)))
                 {
                     Vector2 obstaclePos = m_odometer.toWorldSpace(Vector2.unitX().scale(Robot.RADIUS + OBSTACLE_DISTANCE + 4));
+
+                    // if there is an obstacle blocking the endpoint give up
+                    if (Vector2.distance(obstaclePos, destination) < Board.TILE_SIZE)
+                    {
+                        return false;
+                    }
+                    
                     obstacles.add(obstaclePos);
                     path = m_board.findPath(m_odometer.getPosition(), destination, obstacles);
                 }
             }
             else
             {
-                Utils.writeDebug("Arrived at " + path.get(0).toString());
+                //Utils.writeDebug("Arrived at " + path.get(0).toString());
                 // remove waypoints we have arrived at
                 path.remove(0);
             }
         }
+        return true;
     }
 
     /**
@@ -294,9 +308,10 @@ public class Main
         Utils.sleep(50);
         m_driver.goForward(Vector2.distance(m_odometer.getPosition(), destination), false);
         
-        while ( m_driver.isTravelling() &&
-                (m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() > Robot.RADIUS + OBSTACLE_DISTANCE ||
-                        Vector2.distance(destination, m_odometer.getPosition()) < OBSTACLE_DISTANCE)
+        while (m_driver.isTravelling() && (
+                    m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() > Robot.RADIUS + OBSTACLE_DISTANCE ||
+                    Vector2.distance(destination, m_odometer.getPosition()) < OBSTACLE_DISTANCE || 
+                    m_board.inTeamZone(m_odometer.toWorldSpace(Vector2.unitX().scale(m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX()))))
                 ) {}
         if (m_driver.isTravelling())
         {
@@ -304,63 +319,6 @@ public class Main
             return true;
         }
         return false;
-    }
-
-    /**
-     * Moves the robot some distance to the left or right, depending on which
-     * direction is clearer of other obstacles.
-     */
-    private void avoidObstacle()
-    {
-        // check if there is no obstacle nearby on the left using the left ultrasound sensor
-        // also check if the avoidance detour will cross into a invalid position
-        Vector2 leftAvoidWaypoint1 = m_odometer.toWorldSpace(new Vector2(0, AVOID_DISTANCE));
-        Vector2 leftAvoidWaypoint2 = m_odometer.toWorldSpace(new Vector2(AVOID_DISTANCE, AVOID_DISTANCE));
-        Vector2 rightAvoidWaypoint1 = m_odometer.toWorldSpace(new Vector2(0, -AVOID_DISTANCE));
-        Vector2 rightAvoidWaypoint2 = m_odometer.toWorldSpace(new Vector2(AVOID_DISTANCE, -AVOID_DISTANCE));
-
-        Vector2 detour1;
-        Vector2 detour2;
-        
-        float leftDistance = m_usUpper.getFilteredDistance() + Robot.US_UPPER_OFFSET.getY();
-        if (leftDistance > Robot.RADIUS + AVOID_DISTANCE && checkValidity(leftAvoidWaypoint1))
-        {
-            detour1 = leftAvoidWaypoint1;
-            detour2 = leftAvoidWaypoint2;
-        }
-        else
-        {
-            // if the left way around is invalid, try looking right at check if it is clear
-            m_driver.turn(-90, Robot.ROTATE_SPEED, true);
-            detour1 = rightAvoidWaypoint1;
-            detour2 = rightAvoidWaypoint2;
-
-            float rightDistance = m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX();
-            // if both left and right direction are not clear, pick the better bet
-            if (!(rightDistance > Robot.RADIUS + AVOID_DISTANCE && checkValidity(rightAvoidWaypoint1)) && leftDistance > rightDistance)
-            {
-                detour1 = leftAvoidWaypoint1;
-                detour2 = leftAvoidWaypoint2;
-            }
-        }
-        
-        if (!moveUntilObstacle(detour1))
-        {            
-            moveUntilObstacle(detour2);
-        }
-    }
-
-    /**
-     * Determines if a point on the board in a valid place for the robot to go.
-     * 
-     * @param destination
-     *            the world space position to check.
-     * @return true if the destination point doesn't overlap any invalid
-     *         regions.
-     */
-    private boolean checkValidity(Vector2 destination)
-    {
-        return m_board.inBounds(destination) && !m_board.inEnemyZone(destination);
     }
 
     /**
@@ -406,11 +364,11 @@ public class Main
 
         // sorted map by increasing angle
         Map<Float,Float> sortedData = angleDistanceMap;
-        Utils.writeToFile(sortedData, "sorted.txt");
+        //Utils.writeToFile(sortedData, "sorted.txt");
 
         // sanitize data to remove incorrect discontinuities
         Map<Float,Float> sanitizedData = sanitize(sortedData);
-        Utils.writeToFile(sanitizedData, "sanitized.txt");
+        //Utils.writeToFile(sanitizedData, "sanitized.txt");
 
         // set the iterator to the first sanitized data point
         Iterator<Map.Entry<Float,Float>> entries = sanitizedData.entrySet().iterator();
@@ -449,14 +407,14 @@ public class Main
         else if (sortedDiscontinuities.size() == 1)
         {
             Sound.beep();
-            Utils.writeToFile(sortedDiscontinuities, "disc1.txt");
+            //Utils.writeToFile(sortedDiscontinuities, "disc1.txt");
             oneDiscontinuity(sortedData, sortedDiscontinuities);
             return true;
         }
         else
         {
             Sound.twoBeeps();
-            Utils.writeToFile(sortedDiscontinuities, "disc2.txt");
+            //Utils.writeToFile(sortedDiscontinuities, "disc2.txt");
 
             if (moreThanOneBlock(sortedDiscontinuities))
             {
@@ -552,12 +510,12 @@ public class Main
 
                     angleGap = Math.abs(m_discontinuityEndAngle - m_discontinuityStartAngle);
 
-                    Utils.writeDebug("Angle gap is: " + angleGap);
+                    //Utils.writeDebug("Angle gap is: " + angleGap);
 
                     if (angleGap < minAngleGap) // if we have a discontinuity
                                                 // lower than this, delete
                     {
-                        Utils.writeDebug("will delete from: " + m_discontinuityStartAngle + " to: " + m_discontinuityEndAngle);
+                        //Utils.writeDebug("will delete from: " + m_discontinuityStartAngle + " to: " + m_discontinuityEndAngle);
 
                         // modifiying this reference
                         filterOutFalsePositives(rawData, m_discontinuityStartAngle, m_discontinuityEndAngle);
@@ -607,7 +565,7 @@ public class Main
 
             if (Math.abs(currentAngle - previousAngle) > oneBlockAngle)
             {
-                Utils.writeDebug("Detected two blocks. Abort.");
+                //Utils.writeDebug("Detected two blocks. Abort.");
                 return true;
             }
 
@@ -778,7 +736,7 @@ public class Main
                 destinationDistance = (currentDistance + previousDistance) / 2.0f;
 
                 // DEBUG
-                Utils.writeDebug("Planning on traveling: " + destinationDistance);
+                //Utils.writeDebug("Planning on traveling: " + destinationDistance);
 
                 // if it detects an object to close to it, abort search and
                 // relocate

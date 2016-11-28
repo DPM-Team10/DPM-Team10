@@ -150,6 +150,19 @@ public class Board
     }
 
     /**
+     * Checks if the a point is within the team zone.
+     * 
+     * @param position
+     *            the position to check.
+     * @return true if the point is within the zone.
+     */
+    public boolean inTeamZone(Vector2 position)
+    {
+        Rectangle teamZone = m_startParameters.isBuilder() ? m_buildZone : m_dumpZone;
+        return Utils.rectContains(position, Utils.padRect(teamZone,  ZONE_BUFFER));
+    }
+
+    /**
      * Checks if the robot would overlap the enemy zone while traveling between
      * two points.
      * 
@@ -220,7 +233,7 @@ public class Board
             {
                 for (Vector2 obstacle : obstacles)
                 {
-                    if (!v.equals(pathEnd) && Vector2.distance(obstacle, v.getValue()) < Robot.RADIUS + 8)
+                    if (!v.equals(pathEnd) && Vector2.distance(obstacle, v.getValue()) < Robot.RADIUS + 6)
                     {
                         blockedVertices.add(v);
                     }
