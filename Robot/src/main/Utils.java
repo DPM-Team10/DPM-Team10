@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
+import graph.Vertex;
 import lejos.robotics.geometry.*;
 
 /**
@@ -135,6 +136,27 @@ public class Utils
     public static boolean lineIntersectsRect(Vector2 lineStart, Vector2 lineEnd, Rectangle rect)
     {
         return rect.intersectsLine(lineStart.getX(), lineStart.getY(), lineEnd.getX(), lineEnd.getY());
+    }
+
+    /**
+     * Get the nearest point from a set to a given point.
+     * 
+     * @return the closest point.
+     */
+    public static Vector2 getNearestPoint(Vector2 point, List<Vector2> set)
+    {
+        float closestDistance = Float.MAX_VALUE;
+        Vector2 closest = null;
+        for (Vector2 v : set)
+        {
+            float distance = Vector2.distance(v, point);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closest = v;
+            }
+        }
+        return closest;
     }
 
     /**

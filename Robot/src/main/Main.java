@@ -16,7 +16,7 @@ public class Main
     // how far the robot sees while localizing in cm
     private static final float LOCALIZATION_DISTANCE = 45;
     // number of blocks the the robot will try to stack before dropping them off
-    private static final int BLOCK_STACK_SIZE = 1;
+    private static final int BLOCK_STACK_SIZE = 2;
     // the distance in cm ahead of the robot in which obstacles are seen 
     private static final float OBSTACLE_DISTANCE = 11f;
     // how much error is allowed between the odometer position and destination position.
@@ -109,20 +109,69 @@ public class Main
 
         Random random = new Random();
         List<Vector2> searchPoints = new ArrayList<Vector2>();
-        searchPoints.add(new Vector2(1.5f * Board.TILE_SIZE, 1.5f * Board.TILE_SIZE));
-        searchPoints.add(new Vector2(3.5f * Board.TILE_SIZE, 1.5f * Board.TILE_SIZE));
+        searchPoints.add(new Vector2(1.5f, 1.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(3.5f, 1.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(5.5f, 1.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(7.5f, 1.5f).scale(Board.TILE_SIZE));
+
+        searchPoints.add(new Vector2(1.5f, 3.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(1.5f, 5.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(1.5f, 7.5f).scale(Board.TILE_SIZE));
         
+        searchPoints.add(new Vector2(2.5f, 8.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(4.5f, 8.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(6.5f, 8.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(8.5f, 8.5f).scale(Board.TILE_SIZE));
+
+        searchPoints.add(new Vector2(8.5f, 2.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(8.5f, 4.5f).scale(Board.TILE_SIZE));
+        searchPoints.add(new Vector2(8.5f, 6.5f).scale(Board.TILE_SIZE));
+        
+        List<Vector2> validPoints = new ArrayList<Vector2>();
+        for (Vector2 v : searchPoints)
+        {
+            if (!m_board.inEnemyZone(v) && !m_board.inTeamZone(v) && m_board.inBounds(v))
+            {
+                validPoints.add(v);
+            }
+        }
+        searchPoints = validPoints;
         
         // main logic loop
         while (getTimeRemaining() > END_TIME)
         {
             // search for blocks until we are facing a probably block
-            
-            
-            float randomAngle = (random.nextFloat() * 360);
-            while (!searchForBlocks(randomAngle, 90))
+            boolean facingBlock = false;
+            while (!facingBlock)
             {
+                Vector2 searchPoint = Utils.getNearestPoint(m_odometer.getPosition(), searchPoints);
                 
+                if (moveWhileAvoiding(searchPoint, POSITION_TOLERANCE, true))
+                {
+                    // search for the center of the obstacle in front of the robot
+                    facingBlock = searchForBlocks(m_odometer.getTheta(), 90);
+                }
+                else
+                {
+                    // if we reached a search point, do two searches for blocks
+                    float randomAngle = (random.nextFloat() * 360);
+                    facingBlock = searchForBlocks(randomAngle, 90);
+                    
+                    if (getTimeRemaining() < END_TIME) { break; }
+                    
+                    if (!facingBlock)
+                    {
+                        facingBlock = searchForBlocks(randomAngle + 135, 90);
+                    }
+                }
+                
+                // if we are near the search point we were going to, remove it so we go to a new one next
+                if (Vector2.distance(m_odometer.getPosition(), searchPoint) < Board.TILE_SIZE)
+                {
+                    searchPoints.remove(searchPoint);
+                }
+                
+                if (getTimeRemaining() < END_TIME) { break; }
             }
             
             if (getTimeRemaining() < END_TIME) { break; }
@@ -151,13 +200,18 @@ public class Main
             if (m_blockManager.getBlockCount() >= BLOCK_STACK_SIZE)
             {
                 // move to the appropriate zone
-                moveWhileAvoiding(m_board.getTeamZoneCenter(), POSITION_TOLERANCE);
+                moveWhileAvoiding(m_board.getTeamZoneCenter(), POSITION_TOLERANCE, false);
+                
+                // drop off the held blocks
                 m_blockManager.releaseBlock();
+                
+                // back up so the dropped stack is not knocked over
+                m_driver.goForward(-20, true);
             }
         }
         
         // we must move back to the start corner before the end of the match
-        moveWhileAvoiding(m_board.getStartPos(), POSITION_TOLERANCE);
+        moveWhileAvoiding(m_board.getStartPos(), POSITION_TOLERANCE, false);
         
         // finish
         System.exit(0);
@@ -259,9 +313,9 @@ public class Main
      * @param positionTolerance
      *            the distance under which the robot must be to the given
      *            position before returning.
-     * @returns true if the destination was blocked.
+     * @returns true if the robot has stopped before an obstacle.
      */
-    private boolean moveWhileAvoiding(Vector2 destination, float positionTolerance)
+    private boolean moveWhileAvoiding(Vector2 destination, float positionTolerance, boolean stopFacingObstacle)
     {
         List<Vector2> obstacles = new ArrayList<Vector2>();
         List<Vector2> path = m_board.findPath(m_odometer.getPosition(), destination, obstacles);
@@ -277,9 +331,9 @@ public class Main
                     Vector2 obstaclePos = m_odometer.toWorldSpace(Vector2.unitX().scale(Robot.RADIUS + OBSTACLE_DISTANCE + 4));
 
                     // if there is an obstacle blocking the endpoint give up
-                    if (Vector2.distance(obstaclePos, destination) < Board.TILE_SIZE)
-                    {
-                        return false;
+                    if (stopFacingObstacle || Vector2.distance(obstaclePos, destination) < Board.TILE_SIZE)
+                    { 
+                        return true;
                     }
                     
                     obstacles.add(obstaclePos);
@@ -293,7 +347,7 @@ public class Main
                 path.remove(0);
             }
         }
-        return true;
+        return false;
     }
 
     /**
@@ -404,7 +458,6 @@ public class Main
         if (sortedDiscontinuities.size() == 0)
         {
             Sound.buzz();
-            noDiscontinuities(sortedData);
         }
         else if (sortedDiscontinuities.size() == 1)
         {
@@ -415,7 +468,6 @@ public class Main
         }
         else
         {
-            Sound.twoBeeps();
             //Utils.writeToFile(sortedDiscontinuities, "disc2.txt");
 
             if (moreThanOneBlock(sortedDiscontinuities))
@@ -424,6 +476,7 @@ public class Main
             }
             else
             {
+                Sound.twoBeeps();
                 manyDiscontinuities(sortedDiscontinuities);
                 return true;
             }
@@ -600,28 +653,6 @@ public class Main
                 rawData.put(currentAngle, correctedDistance);
             }
         }
-    }
-    
-    /**
-     * This method is to be called for analyzing a dataset containing no
-     * discontinuities.
-     * 
-     * @param data
-     *            a map containing all the angles and the distances for each
-     *            of them.
-     */
-    private void noDiscontinuities(Map<Float,Float> data)
-    {
-        float[] meanAngleDistance = getMeanAngleDistance(data);
-
-        float meanAngle = meanAngleDistance[0];
-        float meanDistance = meanAngleDistance[1];
-
-        Vector2 destination = Vector2.fromPolar(meanAngle, meanDistance - OFFSET);
-
-        // move robot to mean distance, at mean angle
-        //m_odometer.getPosition().add(Vector2.fromPolar(90,5))
-        m_driver.travelTo(m_odometer.getPosition().add(destination), true);
     }
     
     /**
