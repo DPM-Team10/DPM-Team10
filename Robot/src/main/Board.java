@@ -243,7 +243,6 @@ public class Board
             Utils.writeDebug("Blocked...");
             for (Vertex v : blockedVertices)
             {
-                //System.out.println("B: " + v.getValue().toString());
                 Utils.writeDebug(v.getValue().toString());
             }
             
@@ -276,11 +275,6 @@ public class Board
             {
                 reversePath.add(currentNode.getValue());
                 currentNode = moves.get(currentNode);
-            }
-            
-            for (Vector2 v : reversePath)
-            {
-                //System.out.println("R: " + v.toString());
             }
             
             reversePath.add(from);
@@ -319,7 +313,6 @@ public class Board
         Utils.writeDebug("Path...");
         for (Vector2 v : path)
         {
-            //System.out.println("P: " + v.toString());
             Utils.writeDebug(v.toString());
         }
 

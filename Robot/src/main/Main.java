@@ -109,6 +109,8 @@ public class Main
 
         Random random = new Random();
         List<Vector2> searchPoints = new ArrayList<Vector2>();
+        searchPoints.add(new Vector2(1.5f * Board.TILE_SIZE, 1.5f * Board.TILE_SIZE));
+        searchPoints.add(new Vector2(3.5f * Board.TILE_SIZE, 1.5f * Board.TILE_SIZE));
         
         
         // main logic loop
@@ -269,7 +271,7 @@ public class Main
         {
             if (Vector2.distance(m_odometer.getPosition(), path.get(0)) > positionTolerance)
             {
-                //Utils.writeDebug("Moving to " + path.get(0).toString());
+                Utils.writeDebug("Moving to " + path.get(0).toString());
                 if (moveUntilObstacle(path.get(0)))
                 {
                     Vector2 obstaclePos = m_odometer.toWorldSpace(Vector2.unitX().scale(Robot.RADIUS + OBSTACLE_DISTANCE + 4));
@@ -286,7 +288,7 @@ public class Main
             }
             else
             {
-                //Utils.writeDebug("Arrived at " + path.get(0).toString());
+                Utils.writeDebug("Arrived at " + path.get(0).toString());
                 // remove waypoints we have arrived at
                 path.remove(0);
             }
