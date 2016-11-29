@@ -113,6 +113,14 @@ public class Board
     }
 
     /**
+     * @return the position of the center of the board.
+     */
+    public Vector2 getBoardCenter()
+    {
+        return new Vector2((float) m_board.getCenterX(), (float) m_board.getCenterY());
+    }
+
+    /**
      * @return the position of the center of our zone.
      */
     public Vector2 getTeamZoneCenter()

@@ -38,8 +38,7 @@ public class HeldBlockManager
     {
         raisePulley();
         m_clawMotor.rotateTo(90);
-        m_clawMotor.waitComplete();
-
+        //m_clawMotor.waitComplete();
     }
     
     /**
