@@ -16,7 +16,7 @@ public class Main
     // how far the robot sees while localizing in cm
     private static final float LOCALIZATION_DISTANCE = 45;
     // number of blocks the the robot will try to stack before dropping them off
-    private static final int BLOCK_STACK_SIZE = 2;
+    private static final int BLOCK_STACK_SIZE = 1;
     // the distance in cm ahead of the robot in which obstacles are seen 
     private static final float OBSTACLE_DISTANCE = 11f;
     // how much error is allowed between the odometer position and destination position.
@@ -107,7 +107,8 @@ public class Main
         // initialize the claw
         m_blockManager.initializeClaw();
 
-        Random random = new Random();
+        Random random = new Random(System.currentTimeMillis());
+        
         List<Vector2> searchPoints = new ArrayList<Vector2>();
         searchPoints.add(new Vector2(1.5f, 1.5f).scale(Board.TILE_SIZE));
         searchPoints.add(new Vector2(3.5f, 1.5f).scale(Board.TILE_SIZE));
@@ -146,23 +147,13 @@ public class Main
             {
                 Vector2 searchPoint = Utils.getNearestPoint(m_odometer.getPosition(), searchPoints);
                 
-                if (moveWhileAvoiding(searchPoint, POSITION_TOLERANCE, true))
-                {
-                    // search for the center of the obstacle in front of the robot
-                    facingBlock = searchForBlocks(m_odometer.getTheta(), 90);
-                }
-                else
+                facingBlock = moveWhileAvoiding(searchPoint, POSITION_TOLERANCE, true);
+                
+                if (!facingBlock)
                 {
                     // if we reached a search point, do two searches for blocks
                     float randomAngle = (random.nextFloat() * 360);
-                    facingBlock = searchForBlocks(randomAngle, 90);
-                    
-                    if (getTimeRemaining() < END_TIME) { break; }
-                    
-                    if (!facingBlock)
-                    {
-                        facingBlock = searchForBlocks(randomAngle + 135, 90);
-                    }
+                    facingBlock = ghettoSearch(randomAngle, 180);
                 }
                 
                 // if we are near the search point we were going to, remove it so we go to a new one next
@@ -190,6 +181,12 @@ public class Main
                 {
                     Sound.beepSequenceUp();
                     m_driver.goForward(blockDistance - Robot.US_MAIN_OFFSET.getX(), true);
+
+                    // try to center the block
+                    m_driver.turn(15, Robot.ROTATE_SPEED, true);
+                    m_driver.turn(-30, Robot.ROTATE_SPEED, true);
+                    m_driver.turn(15, Robot.ROTATE_SPEED, true);
+                    
                     m_blockManager.captureBlock();
                 }
             }
@@ -385,6 +382,58 @@ public class Main
     private float getTimeRemaining()
     {
         return MATCH_DURATION - ((System.currentTimeMillis() - m_startTime) / 1000f);
+    }
+    
+
+    private boolean ghettoSearch(float searchDirection, float searchWidth)
+    {
+        // turn to face the start angle of the sweep
+        float startAngle = Utils.normalizeAngle(searchDirection - (searchWidth / 2));
+        m_driver.turnTo(startAngle, Robot.ROTATE_SPEED, true);
+
+        // start turning the robot
+        m_driver.turn(searchWidth, Robot.SEARCH_SPEED, false);
+        
+        boolean foundBlock = false;
+        while (m_driver.isTravelling())
+        {
+            while (m_driver.isTravelling() && m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() > 60) {}
+            if (m_driver.isTravelling())
+            {
+                Utils.sleep(65);
+                List<Float> distances = new ArrayList<Float>();
+                List<Float> angles = new ArrayList<Float>();
+                while (m_driver.isTravelling() && m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() < 60)
+                {
+                    distances.add(m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX());
+                    angles.add(m_odometer.getTheta());
+                    Utils.sleep(UltrasonicPoller.UPDATE_PERIOD);
+                }
+                if (m_driver.isTravelling() && Utils.toBearing(angles.get(0) - angles.get(angles.size() - 1)) > 6)
+                {
+                    int middleIndex = distances.size() / 2;
+                    Vector2 blockPos = m_odometer.getPosition().add(Vector2.fromPolar(angles.get(middleIndex), distances.get(middleIndex) + 5));
+                    
+                    if (m_board.inBounds(blockPos) && !m_board.inEnemyZone(blockPos) && !m_board.inTeamZone(blockPos))
+                    {
+                        foundBlock = true;
+                        m_driver.travelTo(m_odometer.getPosition().add(Vector2.fromPolar(angles.get(middleIndex), Math.max(distances.get(middleIndex) - (Robot.RADIUS + OBSTACLE_DISTANCE), 1f))), true);
+                    }
+                }
+                if (!foundBlock)
+                {
+                    Utils.sleep(65);
+                }
+            }
+        }
+        
+        if (foundBlock)
+        {
+            Sound.beepSequenceUp();
+            return true;
+        }
+        Sound.buzz();
+        return false;
     }
     
     /**
