@@ -155,7 +155,6 @@ public class Main
                 
                 if (moveWhileAvoiding(searchPoint, POSITION_TOLERANCE, Vector2.distance(lastSearchPosition, m_odometer.getPosition()) > 10))
                 {
-                    Sound.beepSequenceUp();
                     facingBlock = blockSearch(m_odometer.getTheta(), 120);
                     lastSearchPosition = m_odometer.getPosition();
                 }
@@ -164,7 +163,6 @@ public class Main
                 {
                     // if we reached a search point, do two searches for blocks
                     Vector2 direction = m_board.getBoardCenter().subtract(m_odometer.getPosition());
-                    Sound.beepSequence();
                     facingBlock = blockSearch(direction.angle(), 220);
                 }
                 
@@ -424,7 +422,6 @@ public class Main
             while (m_driver.isTravelling() && m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() > 60) {}
             if (m_driver.isTravelling())
             {
-                Sound.beep();
                 Utils.writeDebug("Ang1:" + m_odometer.getTheta());
                 List<Float> distances = new ArrayList<Float>();
                 List<Float> angles = new ArrayList<Float>();
@@ -439,7 +436,6 @@ public class Main
                 {
                     if (Math.abs(Utils.toBearing(angles.get(0) - angles.get(angles.size() - 1))) > 10)
                     {
-                        Sound.beep();
                         int middleIndex = distances.size() / 2;
                         Vector2 blockPos = m_odometer.getPosition().add(Vector2.fromPolar(angles.get(middleIndex), distances.get(middleIndex) + 5));
                         

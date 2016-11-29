@@ -13,7 +13,7 @@ import wifi.WifiConnection;
 public class StartParameters
 {
     // the IP address of the computer running the server application
-    private static final String SERVER_IP = "192.168.43.76";
+    private static final String SERVER_IP = "192.168.2.3";
     // our project team number
     private static final int TEAM_NUMBER = 10;
 
