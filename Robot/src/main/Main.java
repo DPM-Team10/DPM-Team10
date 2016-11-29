@@ -400,6 +400,7 @@ public class Main
             while (m_driver.isTravelling() && m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX() > 60) {}
             if (m_driver.isTravelling())
             {
+                Sound.beep();
                 Utils.sleep(65);
                 List<Float> distances = new ArrayList<Float>();
                 List<Float> angles = new ArrayList<Float>();
@@ -411,12 +412,15 @@ public class Main
                 }
                 if (m_driver.isTravelling() && Utils.toBearing(angles.get(0) - angles.get(angles.size() - 1)) > 6)
                 {
+                    Sound.beep();
                     int middleIndex = distances.size() / 2;
                     Vector2 blockPos = m_odometer.getPosition().add(Vector2.fromPolar(angles.get(middleIndex), distances.get(middleIndex) + 5));
                     
                     if (m_board.inBounds(blockPos) && !m_board.inEnemyZone(blockPos) && !m_board.inTeamZone(blockPos))
                     {
                         foundBlock = true;
+                        m_driver.stop();
+                        Utils.sleep(50);
                         m_driver.travelTo(m_odometer.getPosition().add(Vector2.fromPolar(angles.get(middleIndex), Math.max(distances.get(middleIndex) - (Robot.RADIUS + OBSTACLE_DISTANCE), 1f))), true);
                     }
                 }
