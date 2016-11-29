@@ -220,9 +220,33 @@ public class Board
     {
         List<Vector2> path = new ArrayList<Vector2>();
         
+        // find vertices that are temporarily excluded from the navmesh
+        HashSet<Vertex> blockedVertices = new HashSet<Vertex>();
+        List<Vertex> navGraph = new ArrayList<Vertex>();
+        for (Vertex v : m_navGraph)
+        {
+            for (Vector2 obstacle : obstacles)
+            {
+                if (Vector2.distance(obstacle, v.getValue()) < Robot.RADIUS + 6)
+                {
+                    blockedVertices.add(v);
+                }
+            }
+            if (!blockedVertices.contains(v))
+            {
+                navGraph.add(v);
+            }
+        }
+
+        Utils.writeDebug("Blocked...");
+        for (Vertex v : blockedVertices)
+        {
+            Utils.writeDebug(v.getValue().toString());
+        }
+        
         // find the closest nodes in the navigation graph
-        Vertex pathStart = getNearestNavPoint(from);
-        Vertex pathEnd = getNearestNavPoint(to);
+        Vertex pathStart = getNearestNavPoint(from, navGraph);
+        Vertex pathEnd = getNearestNavPoint(to, navGraph);
 
         path.add(from);
         if (!pathStart.equals(pathEnd))
@@ -233,26 +257,6 @@ public class Board
             
             toVisit.add(pathStart);
             moves.put(pathStart, null);
-            
-            // find vertices that are temporarily excluded from the navmesh
-            HashSet<Vertex> blockedVertices = new HashSet<Vertex>();
-
-            for (Vertex v : m_navGraph)
-            {
-                for (Vector2 obstacle : obstacles)
-                {
-                    if (!v.equals(pathEnd) && Vector2.distance(obstacle, v.getValue()) < Robot.RADIUS + 6)
-                    {
-                        blockedVertices.add(v);
-                    }
-                }
-            }
-
-            Utils.writeDebug("Blocked...");
-            for (Vertex v : blockedVertices)
-            {
-                Utils.writeDebug(v.getValue().toString());
-            }
             
             // until we find a path keep visiting nodes
             while (!toVisit.isEmpty())
@@ -332,11 +336,11 @@ public class Board
      * 
      * @return the closest Vertex.
      */
-    public Vertex getNearestNavPoint(Vector2 position)
+    public Vertex getNearestNavPoint(Vector2 position, List<Vertex> navGraph)
     {
         float closestDistance = Float.MAX_VALUE;
         Vertex closest = null;
-        for (Vertex v : m_navGraph)
+        for (Vertex v : navGraph)
         {
             float distance = Vector2.distance(v.getValue(), position);
             if (distance < closestDistance)

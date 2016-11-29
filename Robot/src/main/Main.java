@@ -155,6 +155,7 @@ public class Main
                 
                 if (moveWhileAvoiding(searchPoint, POSITION_TOLERANCE, Vector2.distance(lastSearchPosition, m_odometer.getPosition()) > 10))
                 {
+                    Sound.beepSequenceUp();
                     facingBlock = blockSearch(m_odometer.getTheta(), 120);
                     lastSearchPosition = m_odometer.getPosition();
                 }
@@ -163,6 +164,7 @@ public class Main
                 {
                     // if we reached a search point, do two searches for blocks
                     Vector2 direction = m_board.getBoardCenter().subtract(m_odometer.getPosition());
+                    Sound.beepSequence();
                     facingBlock = blockSearch(direction.angle(), 220);
                 }
                 
@@ -179,7 +181,7 @@ public class Main
             
             // identify the object in front of the robot
             float blockDistance = m_usMain.getFilteredDistance() + Robot.US_MAIN_OFFSET.getX();
-            if (blockDistance < Robot.RADIUS + 20)
+            if (blockDistance < Robot.RADIUS + 30)
             {
                 // identify the block in front of the robot
                 m_driver.turn(-90, Robot.ROTATE_SPEED, true);
@@ -189,7 +191,6 @@ public class Main
                 // if a blue block, grab hold of it
                 if (isBlueBlock)
                 {
-                    Sound.beepSequenceUp();
                     m_driver.goForward(blockDistance - Robot.US_MAIN_OFFSET.getX(), true);
 
                     // try to center the block
@@ -436,7 +437,7 @@ public class Main
                 }
                 if (m_driver.isTravelling() && angles.size() > 2)
                 {
-                    if (Math.abs(Utils.toBearing(angles.get(0) - angles.get(angles.size() - 1))) > 6)
+                    if (Math.abs(Utils.toBearing(angles.get(0) - angles.get(angles.size() - 1))) > 10)
                     {
                         Sound.beep();
                         int middleIndex = distances.size() / 2;
