@@ -36,14 +36,6 @@ public class Main
     
     private long m_startTime;
     
-    // search algorithm
-    private static final float OFFSET = 30; // to give enough space for the robot to turn around
-    private float m_usPreviousDistance = 0;
-    private boolean m_usHasStartedCollectingData = false;
-    private float m_discontinuityStartAngle = 0;
-    private float m_discontinuityEndAngle = 0;
-    private boolean  m_discontinuitySpotted = false;
-    
     
     /**
      * Launches the main program.
